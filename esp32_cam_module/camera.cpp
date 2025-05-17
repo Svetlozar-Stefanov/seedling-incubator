@@ -4,7 +4,7 @@
 #include "esp_camera.h"
 #include <Arduino.h>
 
-int setupCamera() {
+camera_err_t setupCamera() {
   camera_config_t config;
   config.ledc_channel = LEDC_CHANNEL_0;
   config.ledc_timer = LEDC_TIMER_0;
@@ -61,8 +61,8 @@ int setupCamera() {
   // camera init
   esp_err_t err = esp_camera_init(&config);
   if (err != ESP_OK) {
-    Serial.printf("Camera init failed with error 0x%x", err);
-    return 1;
+    printf("Camera init failed with error 0x%x", err);
+    return CAMERA_ERR_INITIALIZATION_FAILED;
   }
 
   sensor_t *s = esp_camera_sensor_get();
@@ -86,5 +86,13 @@ int setupCamera() {
   s->set_vflip(s, 1);
 #endif
 
-  return 0;
+  return CAMERA_SUCCESS;
+}
+
+const char* getCameraErrorMessage(camera_err_t err) {
+  switch (err) {
+    case CAMERA_SUCCESS: return "Success";
+    case CAMERA_ERR_INITIALIZATION_FAILED: return "Initialization failed.";
+    default: return "Unknown error";
+}
 }

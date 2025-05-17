@@ -22,4 +22,10 @@
 //#define CAMERA_MODEL_DFRobot_Romeo_ESP32S3 // Has PSRAM
 #include "camera_pins.h"
 
-int setupCamera();
+typedef enum {
+    CAMERA_SUCCESS = 0,
+    CAMERA_ERR_INITIALIZATION_FAILED
+} camera_err_t;
+const char* getCameraErrorMessage(camera_err_t err);
+
+camera_err_t setupCamera();
