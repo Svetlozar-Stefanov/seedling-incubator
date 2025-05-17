@@ -5,7 +5,7 @@
 
 httpd_handle_t server = NULL;
 
-esp_err_t capture_handler(httpd_req_t *req) {
+esp_err_t captureHandler(httpd_req_t *req) {
     camera_fb_t *fb = esp_camera_fb_get();
     if (!fb) {
       printf("Camera capture failed\n");
@@ -26,7 +26,7 @@ esp_err_t capture_handler(httpd_req_t *req) {
 httpd_uri_t capture_uri = {
     .uri = "/capture",
     .method = HTTP_GET,
-    .handler = capture_handler,
+    .handler = captureHandler,
     .user_ctx = NULL
 };
 
