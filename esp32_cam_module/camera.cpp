@@ -2,6 +2,7 @@
 
 #include "esp_system.h"
 #include "esp_camera.h"
+
 #include <Arduino.h>
 
 camera_err_t setupCamera() {
@@ -61,7 +62,7 @@ camera_err_t setupCamera() {
   // camera init
   esp_err_t err = esp_camera_init(&config);
   if (err != ESP_OK) {
-    printf("Camera init failed with error 0x%x", err);
+    Serial.printf("Camera init failed with error 0x%x", err);
     return CAMERA_ERR_INITIALIZATION_FAILED;
   }
 
