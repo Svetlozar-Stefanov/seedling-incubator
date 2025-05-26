@@ -2,6 +2,7 @@
 
 #include "server.h"
 #include "camera.h"
+#include "actuator_master.h"
 
 // ===========================
 // Enter your WiFi credentials
@@ -12,6 +13,8 @@ const char *password = "12341234";
 void setup() {
   // put your setup code here, to run once:
   Serial.begin(115200);
+
+  WiFi.mode(WIFI_AP_STA); 
   WiFi.begin(ssid, password);
   WiFi.setSleep(false);
 
@@ -22,6 +25,9 @@ void setup() {
   }
   Serial.println("");
   Serial.println("WiFi connected");
+
+  Serial.print("Wi-Fi Channel: ");
+  Serial.println(WiFi.channel());
 
   server_err_t serverErr = startServer();
   if(!serverErr) {
@@ -38,13 +44,22 @@ void setup() {
       Serial.printf("ERROR: Could not start camera. %s\n",
         getCameraErrorMessage(cameraErr));
     }
-  } else {
-    Serial.printf("ERROR: Could not start server. %s\n", 
-      getServerErrorMessage(serverErr));
+  }
+
+  printMacAddress();
+  actuator_err_t actuatorErr = connectToActuatorSlave();
+  if (!actuatorErr) {
+    Serial.print("Actuator Slave Live! Use 'http://");
+    Serial.print(WiFi.localIP());
+    Serial.println("/actuator/{cmd}' to request an action");
+  }
+  else {
+    Serial.printf("ERROR: Could not connect to ESP32 slave. %s\n",
+      getActuatorErrorMessage(actuatorErr));
   }
 }
 
 void loop() {
   // put your main code here, to run repeatedly:
-
+  
 }
