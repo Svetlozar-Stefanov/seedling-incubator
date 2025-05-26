@@ -50,10 +50,9 @@ esp_err_t readMoistureHandler(httpd_req_t *req) {
                          res.data[i],
                          (i < res.len - 1) ? "," : "");
   }
+  
+  offset += snprintf(json + offset, sizeof(json) - offset, "]");
 
-    offset += snprintf(json + offset, sizeof(json) - offset, "]");
-
-  Serial.print(json);
   esp_err_t err = httpd_resp_send(req, json, strlen(json));
 
   return err;

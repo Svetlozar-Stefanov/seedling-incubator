@@ -3,7 +3,7 @@ typedef enum {
 } command;
 
 struct response {
-  int data[4];
+  int data[64];
   int len;
 };
 

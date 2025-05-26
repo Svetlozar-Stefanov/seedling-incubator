@@ -15,7 +15,7 @@ struct received {
 } rec;
 
 struct response {
-  int data[NUMBER_OF_SOIL_MOISTURE_SENSORS];
+  int data[64];
   int len;
 } res;
 
