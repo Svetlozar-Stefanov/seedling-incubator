@@ -1,19 +1,18 @@
 #include <WiFi.h>
+#include <Preferences.h>
+#include <Arduino.h>
 
+#include "pins.h"
 #include "server.h"
 #include "camera.h"
+#include "config_server.h"
 #include "actuator_master.h"
 
-// ===========================
-// Enter your WiFi credentials
-// ===========================
-const char *ssid = "GalaxyA71A333";
-const char *password = "12341234";
+String ssid = "GalaxyA71A333";
+String password = "12341234";
+String hub_ip = "192.168.27.213";
 
-void setup() {
-  // put your setup code here, to run once:
-  Serial.begin(115200);
-
+void setupSystem() {
   WiFi.mode(WIFI_AP_STA); 
   WiFi.begin(ssid, password);
   WiFi.setSleep(false);
@@ -56,6 +55,33 @@ void setup() {
   else {
     Serial.printf("ERROR: Could not connect to ESP32 slave. %s\n",
       getActuatorErrorMessage(actuatorErr));
+  }
+}
+
+void setup() {
+  // put your setup code here, to run once:
+  Serial.begin(115200);
+  
+  pinMode(CONFIG_PIN, INPUT_PULLUP);
+  delay(100);
+  
+  // If config pin is shorted enter config mode
+  if (digitalRead(CONFIG_PIN) == LOW) {
+    Serial.println("Reset pin pressed. Starting config mode...");
+    start_config_server();
+  }
+  
+  Preferences preferences;
+  preferences.begin("wifi-config", true);
+  ssid = preferences.getString("ssid", "");
+  password = preferences.getString("password", "");
+  hub_ip = preferences.getString("hub_ip", "");
+  preferences.end();
+
+  if (ssid != "") {
+    setupSystem();
+  } else {
+    Serial.println("No configuration available, short the config pin to enter config mode.");
   }
 }
 
