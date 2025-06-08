@@ -1,6 +1,7 @@
 #include <WiFi.h>
-#include <Preferences.h>
 #include <Arduino.h>
+#include <HTTPClient.h>
+#include <Preferences.h>
 
 #include "pins.h"
 #include "server.h"
@@ -8,11 +9,16 @@
 #include "config_server.h"
 #include "actuator_master.h"
 
-String ssid = "GalaxyA71A333";
-String password = "12341234";
-String hub_ip = "192.168.27.213";
+const char* default_ssid = "GalaxyA71A333";
+const char* default_password = "12341234";
+const char* default_hub_ip = "192.168.27.213";
+
+String ssid = default_ssid;
+String password = default_password;
+String hub_ip = default_hub_ip;
 
 void setupSystem() {
+  // Connect to hub hotspot
   WiFi.mode(WIFI_AP_STA); 
   WiFi.begin(ssid, password);
   WiFi.setSleep(false);
@@ -28,21 +34,15 @@ void setupSystem() {
   Serial.print("Wi-Fi Channel: ");
   Serial.println(WiFi.channel());
 
-  server_err_t serverErr = startServer();
-  if(!serverErr) {
-    Serial.print("Server Live! Use 'http://");
+  // Start subsystems
+  camera_err_t cameraErr = setupCamera();
+  if(!cameraErr) {
+    Serial.print("Camera Live! Use 'http://");
     Serial.print(WiFi.localIP());
-    Serial.println("' to connect");
-
-    camera_err_t cameraErr = setupCamera();
-    if(!cameraErr) {
-      Serial.print("Camera Live! Use 'http://");
-      Serial.print(WiFi.localIP());
-      Serial.println("/capture' to request a capture");
-    } else {
-      Serial.printf("ERROR: Could not start camera. %s\n",
-        getCameraErrorMessage(cameraErr));
-    }
+    Serial.println("/capture' to request a capture");
+  } else {
+    Serial.printf("ERROR: Could not start camera. %s\n",
+      getCameraErrorMessage(cameraErr));
   }
 
   printMacAddress();
@@ -56,6 +56,50 @@ void setupSystem() {
     Serial.printf("ERROR: Could not connect to ESP32 slave. %s\n",
       getActuatorErrorMessage(actuatorErr));
   }
+
+  server_err_t serverErr = startServer();
+  if(!serverErr) {
+    Serial.print("Server Live! Use 'http://");
+    Serial.print(WiFi.localIP());
+    Serial.println("' to connect");
+  } else {
+    Serial.printf("ERROR: Could not start device server. %s\n",
+      getServerErrorMessage(serverErr));
+  }
+
+  // Connect device to hub after subsystems setup
+  Preferences preferences;
+  preferences.begin("wifi-config", true);
+  hub_ip = preferences.getString("hub_ip", default_hub_ip);
+  preferences.end();
+
+  // Get device data
+  String mac = WiFi.macAddress();
+  String ip = WiFi.localIP().toString();
+
+  // Setup registration url
+  String registration_url = "http://" + hub_ip + ":8000/devices/register";
+
+  // Create body
+  String body = "{";
+  body += "\"mac\": \"" + mac + "\",";
+  body += "\"ip\": \"" + ip + "\"";
+  body += "}";
+
+  HTTPClient http;
+  http.begin(registration_url);
+  http.addHeader("Content-Type", "application/json");
+
+  int httpResponseCode = http.POST(body);
+  if (httpResponseCode > 0) {
+    Serial.printf("POST response code: %d\n", httpResponseCode);
+    String response = http.getString();
+    Serial.println("Server response: " + response);
+  } else {
+    Serial.printf("POST failed: %s\n", http.errorToString(httpResponseCode).c_str());
+  }
+
+  http.end();
 }
 
 void setup() {
@@ -73,16 +117,11 @@ void setup() {
   
   Preferences preferences;
   preferences.begin("wifi-config", true);
-  ssid = preferences.getString("ssid", "");
-  password = preferences.getString("password", "");
-  hub_ip = preferences.getString("hub_ip", "");
+  ssid = preferences.getString("ssid", default_ssid);
+  password = preferences.getString("password", default_password);
   preferences.end();
 
-  if (ssid != "") {
-    setupSystem();
-  } else {
-    Serial.println("No configuration available, short the config pin to enter config mode.");
-  }
+  setupSystem();
 }
 
 void loop() {
