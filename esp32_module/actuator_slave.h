@@ -1,6 +1,8 @@
 
 typedef enum {
-  READ_SOIL_MOISTURE
+  READ_SOIL_MOISTURE,
+  READ_TEMPERATURE,
+  READ_HUMIDITY
 } command;
 
 typedef enum {

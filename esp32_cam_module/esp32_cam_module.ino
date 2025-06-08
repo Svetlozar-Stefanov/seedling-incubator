@@ -93,8 +93,10 @@ void setupSystem() {
   int httpResponseCode = http.POST(body);
   if (httpResponseCode > 0) {
     Serial.printf("POST response code: %d\n", httpResponseCode);
-    String response = http.getString();
-    Serial.println("Server response: " + response);
+    if (httpResponseCode != 200) {
+      String response = http.getString();
+      Serial.println("Server response: " + response);
+    }
   } else {
     Serial.printf("POST failed: %s\n", http.errorToString(httpResponseCode).c_str());
   }

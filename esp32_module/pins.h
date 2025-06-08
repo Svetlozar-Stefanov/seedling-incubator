@@ -5,3 +5,5 @@
 #define MULTIPLEXER_ADDRESS_B_PIN 26
 #define MULTIPLEXER_ADDRESS_C_PIN 25
 
+# define SDA_PIN 21
+# define SCL_PIN 22

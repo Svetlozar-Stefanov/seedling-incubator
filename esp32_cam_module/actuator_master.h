@@ -1,10 +1,13 @@
 typedef enum {
-  READ_SOIL_MOISTURE
+  READ_SOIL_MOISTURE,
+  READ_TEMPERATURE,
+  READ_HUMIDITY
 } command;
 
 struct response {
-  int data[64];
+  float data[64];
   int len;
+  command cmd;
 };
 
 typedef enum {

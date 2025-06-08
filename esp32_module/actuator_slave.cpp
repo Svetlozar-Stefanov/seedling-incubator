@@ -1,6 +1,7 @@
 #include "actuator_slave.h"
 
 #include "soil_moisture.h"
+#include "temperature_humidity.h"
 
 #include <Arduino.h>
 
@@ -15,8 +16,9 @@ struct received {
 } rec;
 
 struct response {
-  int data[64];
+  float data[64];
   int len;
+  command cmd;
 } res;
 
 esp_now_peer_info_t peerInfo;
@@ -48,12 +50,40 @@ void OnRequestReceived(const uint8_t * mac, const uint8_t *data, int len) {
   if (rec.cmd == READ_SOIL_MOISTURE) {
     const int * moisture = getMoistureMeasurements();
 
+    res.cmd = READ_SOIL_MOISTURE;
     for (int i = 0; i < NUMBER_OF_SOIL_MOISTURE_SENSORS; i++) {
       res.data[i] = moisture[i];
     }
     res.len = NUMBER_OF_SOIL_MOISTURE_SENSORS;
 
     // Return moisture data
+    esp_err_t err = esp_now_send(masterMac, (uint8_t *) &res, sizeof(res));
+    if (err != ESP_OK) {
+      Serial.printf("ERROR: Command not sent sucessfully. %s\n", 
+        esp_err_to_name(err));
+    }
+  } else if (rec.cmd == READ_TEMPERATURE) {
+    float temperature = getTemperature();
+    
+    res.cmd = READ_TEMPERATURE;
+    res.data[0] = temperature;
+    res.len = 1;
+
+    // Return temperature data
+    esp_err_t err = esp_now_send(masterMac, (uint8_t *) &res, sizeof(res));
+    if (err != ESP_OK) {
+      Serial.printf("ERROR: Command not sent sucessfully. %s\n", 
+        esp_err_to_name(err));
+    }
+  }
+  else if (rec.cmd == READ_HUMIDITY) {
+    float humidity = getAirHumidity();
+    
+    res.cmd = READ_HUMIDITY;
+    res.data[0] = humidity;
+    res.len = 1;
+
+    // Return humidity data
     esp_err_t err = esp_now_send(masterMac, (uint8_t *) &res, sizeof(res));
     if (err != ESP_OK) {
       Serial.printf("ERROR: Command not sent sucessfully. %s\n", 

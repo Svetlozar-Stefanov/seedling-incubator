@@ -38,22 +38,63 @@ esp_err_t readMoistureHandler(httpd_req_t *req) {
 
   httpd_resp_set_type(req, "application/json");
   response res = getResponse();
-  char json[1024];
-  int offset = 0;
 
-  offset += snprintf(json + offset, sizeof(json) - offset, "[");
-
+  String json = "[";
   for (int i = 0; i < res.len; i++) {
-      offset += snprintf(json + offset, sizeof(json) - offset,
-                         "{\"sensor_id\":%d,\"value\":%d}%s",
-                         i,
-                         res.data[i],
-                         (i < res.len - 1) ? "," : "");
+    json += "{\"sensor_id\":" + String(i) + ",\"value\":" + String(res.data[i], 0) + "}";
+    if (i < res.len - 1) {
+      json += ",";
+    }
   }
-  
-  offset += snprintf(json + offset, sizeof(json) - offset, "]");
+  json += "]";
 
-  esp_err_t err = httpd_resp_send(req, json, strlen(json));
+  esp_err_t err = httpd_resp_send(req, json.c_str(), strlen(json.c_str()));
+
+  return err;
+}
+
+esp_err_t readTemperatureHandler(httpd_req_t *req) {
+  sendCommand(READ_TEMPERATURE);
+
+  unsigned long start = millis();
+  while (!isResponseReceived() && millis() - start < 5000);
+  if (millis() - start >= 5000) {
+    return ESP_ERR_TIMEOUT;
+  }
+
+  httpd_resp_set_type(req, "application/json");
+  response res = getResponse();
+
+  float temperature = res.data[0];
+
+  String json = "{";
+  json += "\"temperature\":" + String(temperature, 2);
+  json += "}";
+
+  esp_err_t err = httpd_resp_send(req, json.c_str(), strlen(json.c_str()));
+
+  return err;
+}
+
+esp_err_t readHumidityHandler(httpd_req_t *req) {
+  sendCommand(READ_HUMIDITY);
+
+  unsigned long start = millis();
+  while (!isResponseReceived() && millis() - start < 5000);
+  if (millis() - start >= 5000) {
+    return ESP_ERR_TIMEOUT;
+  }
+
+  httpd_resp_set_type(req, "application/json");
+  response res = getResponse();
+
+  float humidity = res.data[0];
+
+  String json = "{";
+  json += "\"humidity\":" + String(humidity, 2);
+  json += "}";
+
+  esp_err_t err = httpd_resp_send(req, json.c_str(), strlen(json.c_str()));
 
   return err;
 }
@@ -73,6 +114,20 @@ httpd_uri_t moisture_uri = {
     .user_ctx = NULL
 };
 
+httpd_uri_t temperature_uri = {
+    .uri = "/actuator/temperature",
+    .method = HTTP_GET,
+    .handler = readTemperatureHandler,
+    .user_ctx = NULL
+};
+
+httpd_uri_t humidity_uri = {
+    .uri = "/actuator/humidity",
+    .method = HTTP_GET,
+    .handler = readHumidityHandler,
+    .user_ctx = NULL
+};
+
 server_err_t startServer() {
     httpd_config_t config = HTTPD_DEFAULT_CONFIG();
     config.server_port = 80;
@@ -80,6 +135,9 @@ server_err_t startServer() {
     if (httpd_start(&server, &config) == ESP_OK) {
       httpd_register_uri_handler(server, &capture_uri);
       httpd_register_uri_handler(server, &moisture_uri);
+      httpd_register_uri_handler(server, &temperature_uri);
+      httpd_register_uri_handler(server, &humidity_uri);
+
       return SERVER_SUCCESS;
     } else {
       return SERVER_ERR_INITIALIZATION_FAILED;

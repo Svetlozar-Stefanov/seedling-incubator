@@ -1,6 +1,7 @@
 #include "actuator_slave.h"
 
 #include "soil_moisture.h"
+#include "temperature_humidity.h"
 
 #include <WiFi.h>
 
@@ -10,6 +11,7 @@ void setup() {
   Serial.begin(115200); // Start serial communication
 
   setupSoilMoisturePins();
+  setupI2CPins();
 
   WiFi.mode(WIFI_STA);
   WiFi.STA.begin();
