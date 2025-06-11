@@ -2,6 +2,7 @@
 
 #include "soil_moisture.h"
 #include "temperature_humidity.h"
+#include "light.h"
 
 #include <Arduino.h>
 
@@ -84,6 +85,20 @@ void OnRequestReceived(const uint8_t * mac, const uint8_t *data, int len) {
     res.len = 1;
 
     // Return humidity data
+    esp_err_t err = esp_now_send(masterMac, (uint8_t *) &res, sizeof(res));
+    if (err != ESP_OK) {
+      Serial.printf("ERROR: Command not sent sucessfully. %s\n", 
+        esp_err_to_name(err));
+    }
+  }
+  else if (rec.cmd == READ_LIGHT) {
+    int light = getLightLevel();
+
+    res.cmd = READ_LIGHT;
+    res.data[0] = light;
+    res.len = 0;
+
+    // Return light data
     esp_err_t err = esp_now_send(masterMac, (uint8_t *) &res, sizeof(res));
     if (err != ESP_OK) {
       Serial.printf("ERROR: Command not sent sucessfully. %s\n", 

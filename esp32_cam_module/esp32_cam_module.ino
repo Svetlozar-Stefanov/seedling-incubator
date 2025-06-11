@@ -1,6 +1,8 @@
 #include <WiFi.h>
+#include <WiFiUdp.h>
 #include <Arduino.h>
 #include <HTTPClient.h>
+#include <ArduinoJson.h>
 #include <Preferences.h>
 
 #include "pins.h"
@@ -11,13 +13,18 @@
 
 const char* default_ssid = "GalaxyA71A333";
 const char* default_password = "12341234";
-const char* default_hub_ip = "192.168.27.213";
+const char* default_host_store = "https://seedling-incubator-default-rtdb.europe-west1.firebasedatabase.app/ip.json";
 
 String ssid = default_ssid;
 String password = default_password;
-String hub_ip = default_hub_ip;
+String host_store = default_host_store;
 
 void setupSystem() {
+  WiFi.disconnect(true);
+  WiFi.softAPdisconnect(true);
+  WiFi.mode(WIFI_OFF);  // Fully reset Wi-Fi subsystem
+  delay(500);
+
   // Connect to hub hotspot
   WiFi.mode(WIFI_AP_STA); 
   WiFi.begin(ssid, password);
@@ -67,40 +74,65 @@ void setupSystem() {
       getServerErrorMessage(serverErr));
   }
 
-  // Connect device to hub after subsystems setup
   Preferences preferences;
   preferences.begin("wifi-config", true);
-  hub_ip = preferences.getString("hub_ip", default_hub_ip);
+  host_store = preferences.getString("host_store", default_host_store);
   preferences.end();
 
+  String hub_ip = "";
+  // Get hub ip
+  HTTPClient http_store;
+  http_store.begin(host_store);
+  int httpResponseCode = http_store.GET();
+  if (httpResponseCode == 200) {
+    String payload = http_store.getString();
+
+    StaticJsonDocument<200> doc;
+    DeserializationError error = deserializeJson(doc, payload);
+
+    if (error) {
+      Serial.print("JSON parse error: ");
+      Serial.println(error.c_str());
+      http_store.end();
+      return;
+    }
+
+    // Read "ip" value
+    const char* ipValue = doc["ip"];
+    hub_ip = String(ipValue);
+    http_store.end();
+  }
+  else {
+    Serial.print("HTTP request for hub ip failed. Code: ");
+    Serial.println(httpResponseCode);
+    http_store.end();
+    return;
+  }
+
+  // Send deivce data to hub
   // Get device data
   String mac = WiFi.macAddress();
-  String ip = WiFi.localIP().toString();
-
-  // Setup registration url
-  String registration_url = "http://" + hub_ip + ":8000/devices/register";
+  IPAddress ip = WiFi.localIP();
 
   // Create body
   String body = "{";
-  body += "\"mac\": \"" + mac + "\",";
-  body += "\"ip\": \"" + ip + "\"";
+  body += "\t\"mac\": \"" + mac + "\",\n";
+  body += "\t\"ip\": \"" + ip.toString() + "\"\n";
   body += "}";
+
+  String registration_url = "http://" + hub_ip + ":8080/api/esp/register";
 
   HTTPClient http;
   http.begin(registration_url);
   http.addHeader("Content-Type", "application/json");
 
-  int httpResponseCode = http.POST(body);
-  if (httpResponseCode > 0) {
-    Serial.printf("POST response code: %d\n", httpResponseCode);
-    if (httpResponseCode != 200) {
-      String response = http.getString();
-      Serial.println("Server response: " + response);
-    }
-  } else {
-    Serial.printf("POST failed: %s\n", http.errorToString(httpResponseCode).c_str());
+  httpResponseCode = http.POST(body);
+  if (httpResponseCode == 200) {
+    Serial.println("Device info sent to hub at: " + hub_ip);
+    http.end();
+    return;
   }
-
+  Serial.println("Could not register with hub, consider rebooting.");
   http.end();
 }
 
@@ -115,6 +147,7 @@ void setup() {
   if (digitalRead(CONFIG_PIN) == LOW) {
     Serial.println("Reset pin pressed. Starting config mode...");
     start_config_server();
+    return;
   }
   
   Preferences preferences;

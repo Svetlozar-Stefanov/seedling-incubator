@@ -7,3 +7,5 @@
 
 # define SDA_PIN 21
 # define SCL_PIN 22
+
+#define LIGHT_PIN 33
